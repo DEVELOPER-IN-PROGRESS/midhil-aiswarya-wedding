@@ -1,0 +1,11 @@
+# Dependencies — Vercel installs these itself
+node_modules/
+
+# Build output — Vercel builds this itself
+dist/
+
+# Local / editor files
+.vercel/
+*.log
+.DS_Store
+Thumbs.db
