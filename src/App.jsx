@@ -96,6 +96,68 @@ function useCountdown(target) {
   };
 }
 
+/* Parallax that also works on phones.
+   `background-attachment: fixed` is ignored on iOS/Android, so instead we move
+   a real layer with transform, driven by scroll inside requestAnimationFrame. */
+function useParallax(ref, strength = 0.18) {
+  useEffect(() => {
+    const layer = ref.current;
+    const host = layer?.parentElement;
+    if (!host) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    let raf = 0;
+    let visible = false;
+    const update = () => {
+      raf = 0;
+      const r = host.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      // −1 when the section has just left the top, +1 when it is about to enter
+      const p = (r.top + r.height / 2 - vh / 2) / (vh / 2 + r.height / 2);
+      const clamped = Math.max(-1, Math.min(1, p));
+      layer.style.transform = `translate3d(0, ${(clamped * strength * r.height).toFixed(1)}px, 0)`;
+    };
+    const onScroll = () => {
+      if (visible && !raf) raf = requestAnimationFrame(update);
+    };
+    const io = new IntersectionObserver(
+      ([e]) => {
+        visible = e.isIntersecting;
+        if (visible) onScroll();
+      },
+      { rootMargin: "100px" }
+    );
+    io.observe(host);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    update();
+    return () => {
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [ref, strength]);
+}
+
+/* Filters used to tear the edges off the telegram paper. */
+function PaperFilters() {
+  return (
+    <svg className="svg-defs" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="torn" x="-10%" y="-14%" width="120%" height="128%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.022 0.009" numOctaves="4" seed="17" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="34" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <filter id="torn-soft" x="-10%" y="-14%" width="120%" height="128%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.03 0.012" numOctaves="3" seed="5" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="20" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+  );
+}
+
 function Reveal({ children, delay = 0, className = "" }) {
   const ref = useRef(null);
   const [shown, setShown] = useState(false);
@@ -174,6 +236,31 @@ function Stamp({ src, caption, tilt = 0, onClick, children, className = "", meta
       </div>
       {caption && <figcaption>{caption}</figcaption>}
     </figure>
+  );
+}
+
+/* Violet telegraph-office handstamp, worn by the grunge mask in CSS. */
+function TelegramSeal({ className = "" }) {
+  return (
+    <svg className={`tg-seal ${className}`} viewBox="0 0 120 120" aria-hidden="true">
+      <defs>
+        <path id="seal-top" d="M20,60 A40,40 0 0,1 100,60" />
+        <path id="seal-bot" d="M22,60 A38,38 0 0,0 98,60" />
+      </defs>
+      <circle cx="60" cy="60" r="55" fill="none" stroke="currentColor" strokeWidth="2.6" />
+      <circle cx="60" cy="60" r="49" fill="none" stroke="currentColor" strokeWidth="1" />
+      <circle cx="60" cy="60" r="27" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <text fontSize="8.6" letterSpacing="1.1" fill="currentColor" fontFamily="Special Elite">
+        <textPath href="#seal-top" startOffset="50%" textAnchor="middle">TELEGRAPH OFFICE</textPath>
+      </text>
+      <text fontSize="7.6" letterSpacing="1.1" fill="currentColor" fontFamily="Special Elite">
+        <textPath href="#seal-bot" startOffset="50%" textAnchor="middle">KOCHI · KERALA</textPath>
+      </text>
+      <text x="60" y="55" textAnchor="middle" fontSize="9" fill="currentColor" fontFamily="Special Elite">14 NOV</text>
+      <text x="60" y="68" textAnchor="middle" fontSize="9" fill="currentColor" fontFamily="Special Elite">2026</text>
+      <path d="M26 60 h8 M86 60 h8" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M60 14 l1.6 3.4 3.7.5-2.7 2.6.7 3.7-3.3-1.8-3.3 1.8.7-3.7-2.7-2.6 3.7-.5z" fill="currentColor" />
+    </svg>
   );
 }
 
@@ -309,44 +396,89 @@ function Invite() {
   );
 }
 
+/* Telegram wording. Real telegrams wrote "stop" instead of a full stop,
+   because punctuation was charged as an extra word. Edit freely — the word
+   count below is just for show. */
+const TG_LINES = [
+  "Save the date stop",
+  "Saturday 14 November 2026 stop",
+  "Counting the days stop",
+];
+const TG_LINES_DONE = [
+  "The day has arrived stop",
+  "St Mathews Church Vennala at 3:30 PM stop",
+];
+const TG_CLOSE = "Come share our joy stop";
+
 function Countdown() {
   const { d, h, m, s, done } = useCountdown(W.countdownTo);
+  const bg = useRef(null);
+  useParallax(bg, 0.18);
   const items = [["Days", d], ["Hrs", h], ["Mins", m], ["Secs", s]];
+  const lines = done ? TG_LINES_DONE : TG_LINES;
+
   return (
-    <section className="countdown" style={{ backgroundImage: `url(${IMG.heart})` }}>
+    <section className="countdown">
+      <div className="cd-bg" ref={bg} style={{ backgroundImage: `url(${IMG.heart})` }} />
       <div className="veil" />
       <Reveal className="countdown-inner">
         <div className="telegram">
-          <div className="tg-head">
-            <b>Telegram</b>
-            <small>
-              Wedding post
-              <br />& telegraph
-            </small>
-          </div>
-          <div className="tg-meta">
-            <span>To: all our loved ones</span>
-            <span>
-              From: {W.groom} & {W.bride}
-            </span>
-          </div>
-          <p className="strip">Save the date stop 14 November 2026 stop</p>
-          {done ? (
-            <p className="strip">Today is the day stop see you there stop</p>
-          ) : (
-            <>
-              <p className="strip">Arriving in stop</p>
-              <div className="tg-clock">
-                {items.map(([label, v]) => (
-                  <div key={label}>
-                    <b>{String(v).padStart(2, "0")}</b>
-                    <span>{label}</span>
-                  </div>
-                ))}
+          <div className="tg-paper" aria-hidden="true" />
+          <span className="tg-smudge s1" aria-hidden="true" />
+          <span className="tg-smudge s2" aria-hidden="true" />
+          <span className="tg-ring" aria-hidden="true" />
+          <TelegramSeal />
+
+          <div className="tg-body">
+            <div className="tg-head">
+              <b>Telegram</b>
+              <small>
+                Wedding post
+                <br />& telegraph
+              </small>
+            </div>
+            <dl className="tg-form">
+              <div>
+                <dt>No.</dt>
+                <dd>141126</dd>
               </div>
-            </>
-          )}
-          <p className="strip">Cannot wait to celebrate with you stop</p>
+              <div>
+                <dt>Origin</dt>
+                <dd>Kochi</dd>
+              </div>
+              <div>
+                <dt>Words</dt>
+                <dd>21</dd>
+              </div>
+            </dl>
+            <div className="tg-meta">
+              <span>To: all our dear ones</span>
+              <span>
+                From: {W.groom} & {W.bride}
+              </span>
+            </div>
+
+            <div className="tg-tape">
+              {lines.map((line) => (
+                <p className="strip" key={line}>
+                  {line}
+                </p>
+              ))}
+              {!done && (
+                <div className="tg-clock">
+                  {items.map(([label, v]) => (
+                    <div key={label}>
+                      <b>{String(v).padStart(2, "0")}</b>
+                      <span>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="strip">{TG_CLOSE}</p>
+            </div>
+
+            <p className="tg-foot">Reply requested by return of post</p>
+          </div>
         </div>
       </Reveal>
     </section>
@@ -656,15 +788,14 @@ function Gallery() {
 function Rsvp() {
   const [name, setName] = useState("");
   const [attend, setAttend] = useState("yes");
-  const [guests, setGuests] = useState(1);
   const [note, setNote] = useState("");
 
   const send = (e) => {
     e.preventDefault();
-    const who = name.trim() || "A guest";
+    const who = name.trim() || "A Wellwisher";
     const msg =
       attend === "yes"
-        ? `Hi! ${who} here. We'll be joining ${W.groom} & ${W.bride}'s wedding on 14 Nov 🎉 Guests: ${guests}.`
+        ? `Hi! ${who} here. We'll be joining ${W.groom} & ${W.bride}'s wedding on 14 Nov 🎉 `
         : `Hi! ${who} here. Sorry, we won't be able to make it to ${W.groom} & ${W.bride}'s wedding, but we're sending our love ♥`;
     const full = note.trim() ? `${msg}\n\n${note.trim()}` : msg;
     window.open(`https://wa.me/${W.whatsapp}?text=${encodeURIComponent(full)}`, "_blank");
@@ -697,16 +828,6 @@ function Rsvp() {
               </button>
             ))}
           </div>
-          {attend === "yes" && (
-            <div className="counter">
-              <span>Number of guests</span>
-              <div>
-                <button type="button" onClick={() => setGuests(Math.max(1, guests - 1))}>−</button>
-                <b>{guests}</b>
-                <button type="button" onClick={() => setGuests(Math.min(10, guests + 1))}>+</button>
-              </div>
-            </div>
-          )}
           <label>
             A little note (optional)
             <textarea rows="3" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Wishes for the couple…" />
@@ -809,6 +930,7 @@ export default function App() {
 
   return (
     <>
+      <PaperFilters />
       <Music />
       {stage !== "open" && <Cover guest={guest} onOpen={open} leaving={stage === "leaving"} />}
       <main>
