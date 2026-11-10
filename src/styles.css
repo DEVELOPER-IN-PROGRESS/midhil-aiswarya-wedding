@@ -251,17 +251,25 @@ a { color: inherit; }
 .strip {
   display: table; position: relative; z-index: 1; color: #241c12;
   font-family: var(--type); font-size: .88rem; letter-spacing: .08em; text-transform: uppercase;
-  padding: .45rem .7rem; margin: .5rem 0; transform: rotate(-.5deg);
+  padding: .45rem .7rem; margin: .5rem 0;
   text-shadow: .4px 0 0 rgba(36, 28, 18, .32);
 }
+/* Clean white gummed tape — straight edges, each piece pasted on at its own angle. */
 .strip::before, .tg-clock div::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; background: #fbf6e6;
-  box-shadow: 0 2px 3px rgba(0, 0, 0, .22); filter: url(#torn-soft);
+  content: ""; position: absolute; inset: 0; z-index: -1; background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .26);
 }
-.strip:nth-of-type(even) { transform: rotate(.6deg); }
-.strip:nth-of-type(even)::before { background: #f8f2df; }
+.strip:nth-of-type(5n + 1) { transform: rotate(-.9deg); }
+.strip:nth-of-type(5n + 2) { transform: rotate(.7deg); }
+.strip:nth-of-type(5n + 3) { transform: rotate(-1.5deg); }
+.strip:nth-of-type(5n + 4) { transform: rotate(1.2deg); }
+.strip:nth-of-type(5n + 5) { transform: rotate(-.3deg); }
 .tg-clock { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin: .8rem 0; }
 .tg-clock div { position: relative; z-index: 1; text-align: center; padding: .75rem .2rem .6rem; }
+.tg-clock div:nth-child(1) { transform: rotate(-1.3deg); }
+.tg-clock div:nth-child(2) { transform: rotate(.9deg); }
+.tg-clock div:nth-child(3) { transform: rotate(-.5deg); }
+.tg-clock div:nth-child(4) { transform: rotate(1.4deg); }
 .tg-clock b { display: block; font-family: var(--type); font-weight: 400; font-size: clamp(1.5rem, 7vw, 2.2rem); line-height: 1; text-shadow: .4px 0 0 rgba(36, 28, 18, .35); }
 .tg-clock span { font-family: var(--type); font-size: .6rem; letter-spacing: .16em; text-transform: uppercase; opacity: .75; }
 .tg-foot { margin-top: 1.4rem; max-width: 62%; font-family: var(--type); font-size: .58rem; letter-spacing: .16em; text-transform: uppercase; opacity: .55; }

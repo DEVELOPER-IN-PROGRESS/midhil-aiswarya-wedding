@@ -11,7 +11,7 @@ const W = {
   mapUrl:
     "https://www.google.com/maps/search/?api=1&query=St+Mathews+Church+Vennala+Kochi",
   whatsapp: "919447338882", // country code + number, no + or spaces
-  music: "/music.mp3", // file lives in public/music.mp3
+  // Music lives in the /audio folder — see TRACKS below.
   countdownTo: "2026-11-14T15:30:00+05:30",
 };
 
@@ -69,6 +69,20 @@ const toCaption = (path) => {
 const PHOTOS = Object.entries(galleryFiles)
   .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
   .map(([path, src]) => ({ src, caption: toCaption(path) }));
+
+/* ───────────── Music ─────────────
+   Every audio file in the /audio folder is picked up automatically — no code
+   changes. One is chosen at random each time a guest opens the invitation. */
+const audioFiles = import.meta.glob("/audio/*.{mp3,m4a,ogg,oga,wav,MP3,M4A,OGG,OGA,WAV}", {
+  eager: true,
+  import: "default",
+});
+
+const TRACKS = Object.entries(audioFiles)
+  .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
+  .map(([, src]) => src);
+
+const pickTrack = () => (TRACKS.length ? TRACKS[Math.floor(Math.random() * TRACKS.length)] : "");
 
 const TILTS = [-2, 1.5, -1, 2, -1.5, 1];
 const mod = (a, n) => ((a % n) + n) % n;
@@ -148,10 +162,6 @@ function PaperFilters() {
         <filter id="torn" x="-10%" y="-14%" width="120%" height="128%">
           <feTurbulence type="fractalNoise" baseFrequency="0.022 0.009" numOctaves="4" seed="17" result="n" />
           <feDisplacementMap in="SourceGraphic" in2="n" scale="34" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-        <filter id="torn-soft" x="-10%" y="-14%" width="120%" height="128%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.03 0.012" numOctaves="3" seed="5" result="n" />
-          <feDisplacementMap in="SourceGraphic" in2="n" scale="20" xChannelSelector="R" yChannelSelector="G" />
         </filter>
       </defs>
     </svg>
@@ -396,19 +406,19 @@ function Invite() {
   );
 }
 
-/* Telegram wording. Real telegrams wrote "stop" instead of a full stop,
-   because punctuation was charged as an extra word. Edit freely — the word
-   count below is just for show. */
+/* Telegram wording. Keep the lines short — the terseness is what sells it.
+   If you change them, update the word count in the form row below. */
 const TG_LINES = [
-  "Save the date stop",
-  "Saturday 14 November 2026 stop",
-  "Counting the days stop",
+  "Save the date",
+  "14 November 2026",
 ];
 const TG_LINES_DONE = [
-  "The day has arrived stop",
-  "St Mathews Church Vennala at 3:30 PM stop",
+  "Today is our Auspicious day. See you there soon!",
 ];
-const TG_CLOSE = "Come share our joy stop";
+const TG_CLOSE = "Cannot wait to celebrate with you";
+
+// Counted from the lines above, so it stays right when you edit them.
+const wordCount = (lines) => lines.join(" ").trim().split(/\s+/).filter(Boolean).length;
 
 function Countdown() {
   const { d, h, m, s, done } = useCountdown(W.countdownTo);
@@ -416,6 +426,7 @@ function Countdown() {
   useParallax(bg, 0.18);
   const items = [["Days", d], ["Hrs", h], ["Mins", m], ["Secs", s]];
   const lines = done ? TG_LINES_DONE : TG_LINES;
+  const words = wordCount([...lines, TG_CLOSE]);
 
   return (
     <section className="countdown">
@@ -448,7 +459,7 @@ function Countdown() {
               </div>
               <div>
                 <dt>Words</dt>
-                <dd>21</dd>
+                <dd>{words}</dd>
               </div>
             </dl>
             <div className="tg-meta">
@@ -619,7 +630,9 @@ function Carousel({ photos, onOpen, paused }) {
   useEffect(() => {
     if (!loop || reduce) return;
     const id = setInterval(() => {
-      if (!held.current && !pausedRef.current && !dragRef.current && document.visibilityState === "visible") move(1);
+      if (held.current || pausedRef.current || dragRef.current?.on) return;
+      if (document.visibilityState !== "visible") return;
+      move(1);
     }, 4000);
     return () => clearInterval(id);
   }, [loop]);
@@ -635,7 +648,9 @@ function Carousel({ photos, onOpen, paused }) {
   // Swipe / drag.
   const onPointerDown = (e) => {
     if (!loop || e.button > 0) return;
-    hold();
+    // Deliberately no hold() here: on a phone this also fires when the guest is
+    // only scrolling the page past the carousel. We pause once a sideways drag
+    // is confirmed, in onPointerMove.
     dragRef.current = { x: e.clientX, y: e.clientY, dx: 0, on: false };
   };
   const onPointerMove = (e) => {
@@ -649,6 +664,7 @@ function Carousel({ photos, onOpen, paused }) {
         return;
       }
       d.on = true;
+      hold(); // a real swipe — now it is worth pausing
       setDragging(true);
       e.currentTarget.setPointerCapture?.(e.pointerId);
     }
@@ -795,7 +811,7 @@ function Rsvp() {
     const who = name.trim() || "A Wellwisher";
     const msg =
       attend === "yes"
-        ? `Hi! ${who} here. We'll be joining ${W.groom} & ${W.bride}'s wedding on 14 Nov 🎉 `
+        ? `Hi! ${who} here. I'll definitely be joining ${W.groom} & ${W.bride}'s wedding on 14 Nov 🎉 `
         : `Hi! ${who} here. Sorry, we won't be able to make it to ${W.groom} & ${W.bride}'s wedding, but we're sending our love ♥`;
     const full = note.trim() ? `${msg}\n\n${note.trim()}` : msg;
     window.open(`https://wa.me/${W.whatsapp}?text=${encodeURIComponent(full)}`, "_blank");
@@ -863,9 +879,13 @@ function Music() {
   const ref = useRef(null);
   const [on, setOn] = useState(false);
   const mutedByGuest = useRef(false);
+  // Chosen once per visit: a lazy initialiser keeps it stable across re-renders,
+  // so the track never restarts while the guest is reading.
+  const [track] = useState(pickTrack);
 
   useEffect(() => {
     const a = ref.current;
+    if (!a) return; // no audio files in /audio
     const events = ["pointerdown", "pointerup", "touchend", "click", "keydown"];
     const tryPlay = (e) => {
       if (e?.target?.closest?.(".music")) return; // the toggle handles itself
@@ -889,9 +909,11 @@ function Music() {
     }
   };
 
+  if (!track) return null;
+
   return (
     <>
-      <audio ref={ref} src={W.music} loop preload="auto" onPlay={() => setOn(true)} onPause={() => setOn(false)} />
+      <audio ref={ref} src={track} loop preload="auto" onPlay={() => setOn(true)} onPause={() => setOn(false)} />
       <button
         className={`music ${on ? "on" : ""}`}
         onClick={toggle}
