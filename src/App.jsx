@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/next'
 import { useEffect, useRef, useState } from "react";
 
 /* ───────────── EDIT THESE ───────────── */
@@ -964,6 +965,7 @@ export default function App() {
         <Gallery />
         <Rsvp />
       </main>
+      <Analytics />
       <Footer />
     </>
   );
