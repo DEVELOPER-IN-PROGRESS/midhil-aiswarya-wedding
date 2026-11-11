@@ -1,4 +1,6 @@
-import { Analytics } from '@vercel/analytics/next'
+// This is a Vite + React app, so use the /react entry point.
+// /next pulls in next/navigation, which is not installed here.
+import { Analytics } from "@vercel/analytics/react";
 import { useEffect, useRef, useState } from "react";
 
 /* ───────────── EDIT THESE ───────────── */
